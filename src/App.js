@@ -2,6 +2,8 @@ import { useState } from "react";
 
 export default function App() {
   const [items, setItems] = useState([]);
+  const numItems = items.length;
+  const numPackedItems = items.filter((item) => item.packed).length;
 
   function handleAddItems(item) {
     setItems((items) => [...items, item]);
@@ -11,12 +13,24 @@ export default function App() {
     setItems((items) => items.filter((item) => item.id !== id));
   }
 
+  function handleCheckItems(id) {
+    setItems((items) =>
+      items.map((item) =>
+        item.id === id ? { ...item, packed: !item.packed } : item
+      )
+    );
+  }
+
   return (
     <div className="app">
       <Logo />
       <Form onAddItems={handleAddItems} />
-      <PackagingList items={items} onDeleteItems={handleDeleteItems} />
-      <Stats />
+      <PackagingList
+        items={items}
+        onDeleteItems={handleDeleteItems}
+        onCheckItems={handleCheckItems}
+      />
+      <Stats numItems={numItems} numPackedItems={numPackedItems} />
     </div>
   );
 }
@@ -67,21 +81,54 @@ function Form({ onAddItems }) {
   );
 }
 
-function PackagingList({ items, onDeleteItems }) {
+function PackagingList({ items, onDeleteItems, onCheckItems }) {
+  const [sortBy, setSortBy] = useState("input");
+
+  let sortedItems;
+
+  if (sortBy === "input") sortedItems = items;
+
+  if (sortBy === "description") {
+    sortedItems = items
+      .slice()
+      .sort((a, b) => a.description.localeCompare(b.description));
+  }
+
+  if (sortBy === "packed") {
+    sortedItems = items.slice().sort((a, b) => a.packed - b.packed);
+  }
+
   return (
     <div className="list">
       <ul>
-        {items.map((itm) => (
-          <Item item={itm} key={itm.id} onDeleteItems={onDeleteItems} />
+        {sortedItems.map((itm) => (
+          <Item
+            item={itm}
+            key={itm.id}
+            onDeleteItems={onDeleteItems}
+            onCheckItems={onCheckItems}
+          />
         ))}
       </ul>
+      <div className="Actions">
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <option value="input">Sort by input order</option>
+          <option value="description">Sort by description</option>
+          <option value="packed">Sort by packed items</option>
+        </select>
+      </div>
     </div>
   );
 }
 
-function Item({ item, onDeleteItems }) {
+function Item({ item, onDeleteItems, onCheckItems }) {
   return (
     <li>
+      <input
+        type="checkbox"
+        value={item.packed}
+        onChange={() => onCheckItems(item.id)}
+      />
       <span style={item.packed ? { textDecoration: "line-through" } : {}}>
         {item.quantity} {item.description}
       </span>
@@ -90,10 +137,20 @@ function Item({ item, onDeleteItems }) {
   );
 }
 
-function Stats() {
+function Stats({ numItems, numPackedItems }) {
+  if (numItems === 0)
+    return (
+      <p className="stats">
+        <em>Start by adding some items to the list 🚀</em>
+      </p>
+    );
+
   return (
     <footer className="stats">
-      <em>💼 You have X items on your list, and you already packed X</em>
+      <em>
+        💼 You have {numItems} items on your list, and you already packed{" "}
+        {numPackedItems} ({Math.round((numPackedItems / numItems) * 100) || 0}%)
+      </em>
     </footer>
   );
 }
